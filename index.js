@@ -150,10 +150,10 @@ function _onopen(e) {
 	}
 	// Reconnection.
 	else {
-		debug('onreconnection()');
+		debug('onreconnect()');
 
-		if (this.onreconnection) {
-			this.onreconnection(e);
+		if (this.onreconnect) {
+			this.onreconnect(e);
 		}
 		else if (this.onopen) {
 			this.onopen(e);

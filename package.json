@@ -1,7 +1,7 @@
 {
   "name": "websocketwrapper",
   "title": "WebSocketWrapper",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Wrapper over the WebSocket class to manage disconnections transparently",
   "main": "index.js",
   "scripts": {
@@ -21,8 +21,7 @@
   },
   "homepage": "https://github.com/ibc/WebSocketWrapper",
   "dependencies": {
-    "debug": "^2.1.1",
-    "websocket": "^1.0.17"
+    "debug": "^2.1.1"
   },
   "devDependencies": {
     "browserify": "^8.1.3",
