@@ -110,7 +110,7 @@ WebSocketWrapper.prototype.send = function(data) {
 
 
 WebSocketWrapper.prototype.close = function(code, reason) {
-	debug('close() |[code:%d, reason:%s]', code, reason);
+	debug('close() | [code:%s, reason:%s]', code, reason);
 
 	if (this.closed) { return; }
 	this.closed = true;
