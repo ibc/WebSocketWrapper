@@ -175,7 +175,7 @@ function _onerror(e) {
 
 
 function _onclose(e) {
-	debugerror('onclose() | event: %o', e);
+	debug('onclose() | [code:%s, reason:%s, wasClean:%s', e.code, e.reason, e.wasClean);
 
 	var self = this;
 
