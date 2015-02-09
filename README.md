@@ -38,7 +38,27 @@ They expose the global `window.WebSocketWrapper` module.
 ## Usage Example
 
 ```javascript
+var ws = new WebSocketWrapper(url, protocol);
 
+ws.setReconnectionDelay(5000);
+
+ws.onopen = function() {
+    console.log('connected');
+
+    // Send some kind of registration message.
+    ws.send('REGISTER');
+};
+
+ws.onreconnect = function() {
+    console.log('reconnected');
+
+    // Send some kind of registration message.
+    ws.send('REGISTER');
+};
+
+ws.onmessage = function(e) {
+    // do something
+};
 ```
 
 
@@ -51,13 +71,13 @@ You can read the full [API documentation](docs/index.md) in the docs folder.
 
 The library includes the Node [debug](https://github.com/visionmedia/debug) module. In order to enable debugging:
 
-In Node set the `DEBUG=websocketwrapper*` environment variable before running the application, or set it at the top of the script:
+In Node set the `DEBUG=WebSocketWrapper*` environment variable before running the application, or set it at the top of the script:
 
 ```javascript
-process.env.DEBUG = 'websocketwrapper*';
+process.env.DEBUG = 'WebSocketWrapper*';
 ```
 
-In the browser run `WebSocketWrapper.debug.enable('websocketwrapper*');` and reload the page. Note that the debugging settings are stored into the browser LocalStorage. To disable it run `WebSocketWrapper.debug.disable('websocketwrapper*');`.
+In the browser run `WebSocketWrapper.debug.enable('WebSocketWrapper*');` and reload the page. Note that the debugging settings are stored into the browser LocalStorage. To disable it run `WebSocketWrapper.debug.disable('WebSocketWrapper*');`.
 
 
 ## Author
