@@ -1,7 +1,7 @@
 {
   "name": "websocketwrapper",
   "title": "WebSocketWrapper",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Wrapper over the WebSocket class to manage disconnections transparently",
   "main": "index.js",
   "scripts": {
