@@ -124,8 +124,19 @@ WebSocketWrapper.prototype.close = function(code, reason) {
 	// Stop the reconnection timer.
 	clearTimeout(this.reconnectionTimer);
 
-	if (this.ws.readyState === this.ws.CONNECTING || this.ws.readyState === this.ws.OPEN) {
-		this.ws.close(code, reason);
+	if (this.ws.readyState === this.ws.OPEN) {
+		try {
+			this.ws.close(code, reason);
+		} catch(error) {
+			debugerror('close() | error closing the WebSocket: %o', error);
+		}
+	}
+	else if (this.ws.readyState === this.ws.CONNECTING) {
+		var ws = this.ws;
+
+		ws.onopen = function() {
+			try { ws.close(code, reason); } catch(error) {}
+		};
 	}
 };
 
