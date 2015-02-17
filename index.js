@@ -115,6 +115,9 @@ WebSocketWrapper.prototype.close = function(code, reason) {
 	if (this.closed) { return; }
 	this.closed = true;
 
+	code = code || 1000;
+	reason = reason || 'user closure';
+
 	// Reset events.
 	this.onopen = null;
 	this.onerror = null;
