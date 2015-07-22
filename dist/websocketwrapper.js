@@ -1,102 +1,86 @@
-!function(e){if("object"==typeof exports&&"undefined"!=typeof module)module.exports=e();else if("function"==typeof define&&define.amd)define([],e);else{var f;"undefined"!=typeof window?f=window:"undefined"!=typeof global?f=global:"undefined"!=typeof self&&(f=self),f.WebSocketWrapper=e()}}(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+(function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.WebSocketWrapper = f()}})(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 /**
  * Expose the WebSocketWrapper class.
  */
 module.exports = WebSocketWrapper;
 
 
-/**
- * Dependencies.
- */
-var debug = require('debug')('WebSocketWrapper');
-var debugerror = require('debug')('WebSocketWrapper:ERROR');
+var
+	/**
+	 * Dependencies.
+	 */
+	debug = require('debug')('WebSocketWrapper'),
+	debugerror = require('debug')('WebSocketWrapper:ERROR'),
+	// 'websocket' module uses the native WebSocket interface when bundled to run in a browser.
+	W3CWebSocket = require('websocket').w3cwebsocket,
+	yaeti = require('yaeti');
+
+
 debugerror.log = console.warn.bind(console);
-// 'websocket' module uses the native WebSocket interface when bundled to run in a browser.
-var W3CWebSocket = require('websocket').w3cwebsocket;
 
 
-function WebSocketWrapper(url, protocols, origin, headers, requestOptions, clientConfig) {
-	debug('new() | [url:%s, protocols:%s]', url, protocols);
+function WebSocketWrapper() {
+	debug('new() | [url:"%s", protocol:%s]', arguments[0], arguments[1]);
 
-	var self = this;
+	// Make this an EventTarget.
+	yaeti.EventTarget.call(this);
 
-	// Create the native WebSocket instance.
-	this.createWebSocket = function() {
-		this.ws = new W3CWebSocket(url, protocols, origin, headers, requestOptions, clientConfig);
+	// Store arguments.
+	this.args = arguments;
 
-		this.ws.onopen = function(e) {
-			_onopen.call(self, e);
-		};
+	// The native WebSocket instance.
+	this._ws = null;
 
-		this.ws.onerror = function(e) {
-			_onerror.call(self, e);
-		};
-
-		this.ws.onclose = function(e) {
-			_onclose.call(self, e);
-		};
-
-		if (this._onmessage) {
-			this.ws.onmessage = this._onmessage;
-		}
-
-		if (this._binaryType) {
-			this.ws.binaryType = this._binaryType;
-		}
-	};
-
-	this.createWebSocket();
+	// Create the native WebSocket.
+	createWebSocket.apply(this, this.args);
 
 	// Flag indicating that WebSocket is closed by us.
-	this.closed = false;
+	this._closed = false;
 
 	// Flag indicating that an error happened while connecting.
-	this.hasError = false;
+	this._hasError = false;
 
 	// Reconnecting flag.
-	this.isReconnecting = false;
+	this._isReconnecting = false;
 
 	// Reconnection timer.
-	this.reconnectionTimer = null;
+	this._reconnectionTimer = null;
 
 	// Reconnection delay.
-	this.reconnectionDelay = 2000;
+	this._reconnectionDelay = 5000;
 }
 
 
-// Expose W3C WebSocket attributes.
 Object.defineProperties(WebSocketWrapper.prototype, {
-    url:            { get: function() { return this.ws.url;            } },
-    readyState:     { get: function() { return this.ws.readyState;     } },
-    protocol:       { get: function() { return this.ws.protocol;       } },
-    extensions:     { get: function() { return this.ws.extensions;     } },
-    bufferedAmount: { get: function() { return this.ws.bufferedAmount; } },
+	url:            { get: function () { return this._ws.url;            } },
+	readyState:     { get: function () { return this._ws.readyState;     } },
+	protocol:       { get: function () { return this._ws.protocol;       } },
+	extensions:     { get: function () { return this._ws.extensions;     } },
+	bufferedAmount: { get: function () { return this._ws.bufferedAmount; } },
 
-    CONNECTING:     { get: function() { return this.ws.CONNECTING;     } },
-    OPEN:           { get: function() { return this.ws.OPEN;           } },
-    CLOSING:        { get: function() { return this.ws.CLOSING;        } },
-    CLOSED:         { get: function() { return this.ws.CLOSED;         } },
+	CONNECTING:     { get: function () { return this._ws.CONNECTING;     } },
+	OPEN:           { get: function () { return this._ws.OPEN;           } },
+	CLOSING:        { get: function () { return this._ws.CLOSING;        } },
+	CLOSED:         { get: function () { return this._ws.CLOSED;         } },
 
-    // TODO: set when reconnected
-    binaryType: {
-        get: function() {
-            return this.ws.binaryType;
-        },
-        set: function(type) {
-        	this._binaryType = type;
-            this.ws.binaryType = type;
-        }
-    },
+	binaryType: {
+		get: function () {
+			return this._ws.binaryType;
+		},
+		set: function (type) {
+			this._binaryType = type;
+			this._ws.binaryType = type;
+		}
+	},
 
-    onmessage: {
-    	get: function() {
-    		return this.ws.onmessage;
-    	},
-    	set: function(handler) {
-    		this._onmessage = handler;
-    		this.ws.onmessage = handler;
-    	}
-    }
+	reconnectionDelay: {
+		get: function () {
+			return this._reconnectionDelay;
+		},
+		set: function (delay) {
+			this._reconnectionDelay = delay;
+		}
+	}
 });
 
 
@@ -105,47 +89,28 @@ Object.defineProperties(WebSocketWrapper.prototype, {
  */
 
 
-WebSocketWrapper.prototype.send = function(data) {
-	this.ws.send(data);
+WebSocketWrapper.prototype.send = function (data) {
+	this._ws.send(data);
 };
 
 
-WebSocketWrapper.prototype.close = function(code, reason) {
+WebSocketWrapper.prototype.close = function (code, reason) {
+	if (this._closed) {
+		return;
+	}
+
 	debug('close() | [code:%s, reason:%s]', code, reason);
 
-	if (this.closed) { return; }
-	this.closed = true;
-
-	code = code || 1000;
-	reason = reason || 'user closure';
-
-	// Reset events.
-	this.onopen = null;
-	this.onerror = null;
-	this.onmessage = null;
+	this._closed = true;
 
 	// Stop the reconnection timer.
-	clearTimeout(this.reconnectionTimer);
+	clearTimeout(this._reconnectionTimer);
 
-	if (this.ws.readyState === this.ws.OPEN) {
-		try {
-			this.ws.close(code, reason);
-		} catch(error) {
-			debugerror('close() | error closing the WebSocket: %o', error);
-		}
+	try {
+		this._ws.close(code || 1000, reason || 'user closure');
+	} finally {
+		this._ws = null;
 	}
-	else if (this.ws.readyState === this.ws.CONNECTING) {
-		var ws = this.ws;
-
-		ws.onopen = function() {
-			try { ws.close(code, reason); } catch(error) {}
-		};
-	}
-};
-
-
-WebSocketWrapper.prototype.setReconnectionDelay = function(delay) {
-	this.reconnectionDelay = delay;
 };
 
 
@@ -154,67 +119,75 @@ WebSocketWrapper.prototype.setReconnectionDelay = function(delay) {
  */
 
 
-function _onopen(e) {
-	// First connection.
-	if (! this.isReconnecting) {
-		debug('onopen()');
-
-		if (this.onopen) {
-			this.onopen(e);
-		}
-	}
-	// Reconnection.
-	else {
-		debug('onreconnect()');
-
-		if (this.onreconnect) {
-			this.onreconnect(e);
-		}
-		else if (this.onopen) {
-			this.onopen(e);
-		}
-	}
-}
-
-
-function _onerror(e) {
-	debugerror('onerror() | event: %o', e);
-
-	this.hasError = true;
-
-	if (this.onerror) {
-		this.onerror(e);
-	}
-}
-
-
-function _onclose(e) {
-	debug('onclose() | [code:%s, reason:"%s", wasClean:%s]', e.code, e.reason, e.wasClean);
-
+function createWebSocket(url, protocols, origin, headers, requestOptions, clientConfig) {
 	var self = this;
 
-	if (this.onclose) {
-		this.onclose(e);
-	}
+	this._ws = new W3CWebSocket(url, protocols, origin, headers, requestOptions, clientConfig);
 
-	// Don't try to reconnect if we closed the connection.
-	if (this.closed) { return; }
+	this._ws.onopen = function (e) {
+		// First connection.
+		if (!self._isReconnecting) {
+			debug('firing "open"');
 
-	// Don't try to reconnect if an error happened while connecting.
-	if (this.hasError) { return; }
-	this.hasError = false;
+			self.dispatchEvent(e);
+		// Reconnection.
+		} else {
+			if (self.onreconnect || self._listeners.reconnect) {
+				debug('reconnected, firing "reconnect"');
 
-	if (this.reconnectionDelay) {
-		this.reconnectionTimer = setTimeout(function() {
-			debug('reconnecting ...');
+				self.dispatchEvent(new yaeti.Event('reconnect'));
+			} else {
+				debug('reconnected, firing "open"');
 
-			self.isReconnecting = true;
-			self.createWebSocket();
-		}, this.reconnectionDelay);
+				self.dispatchEvent(e);
+			}
+		}
+	};
+
+	this._ws.onerror = function (e) {
+		debug('firing "error"');
+
+		self._hasError = true;
+		self.dispatchEvent(e);
+	};
+
+	this._ws.onclose = function (e) {
+		debug('firing "close" | [code:%s, reason:"%s", wasClean:%s]', e.code, e.reason, e.wasClean);
+
+		try {
+			self.dispatchEvent(e);
+		} catch (error) {}
+
+		// Don't try to reconnect if we closed the connection or an error happened while connecting.
+		if (self._closed || self._hasError) {
+			return;
+		}
+
+		self._hasError = false;
+
+		if (self._reconnectionDelay) {
+			debug('will try to reconnect in %s ms', self._reconnectionDelay);
+
+			self._reconnectionTimer = setTimeout(function () {
+				debug('reconnecting ...');
+
+				self._isReconnecting = true;
+				createWebSocket.apply(self, self.args);
+			}, self._reconnectionDelay);
+		}
+	};
+
+	this._ws.onmessage = function (e) {
+		self.dispatchEvent(e);
+	};
+
+	// Set previous binaryType if this is a reconnection.
+	if (this._binaryType) {
+		this._ws.binaryType = this._binaryType;
 	}
 }
 
-},{"debug":2,"websocket":5}],2:[function(require,module,exports){
+},{"debug":2,"websocket":5,"yaeti":8}],2:[function(require,module,exports){
 
 /**
  * This is the web browser implementation of `debug()`.
@@ -228,17 +201,10 @@ exports.formatArgs = formatArgs;
 exports.save = save;
 exports.load = load;
 exports.useColors = useColors;
-
-/**
- * Use chrome.storage.local if we are in an app
- */
-
-var storage;
-
-if (typeof chrome !== 'undefined' && typeof chrome.storage !== 'undefined')
-  storage = chrome.storage.local;
-else
-  storage = window.localStorage;
+exports.storage = 'undefined' != typeof chrome
+               && 'undefined' != typeof chrome.storage
+                  ? chrome.storage.local
+                  : localstorage();
 
 /**
  * Colors.
@@ -346,9 +312,9 @@ function log() {
 function save(namespaces) {
   try {
     if (null == namespaces) {
-      storage.removeItem('debug');
+      exports.storage.removeItem('debug');
     } else {
-      storage.debug = namespaces;
+      exports.storage.debug = namespaces;
     }
   } catch(e) {}
 }
@@ -363,7 +329,7 @@ function save(namespaces) {
 function load() {
   var r;
   try {
-    r = storage.debug;
+    r = exports.storage.debug;
   } catch(e) {}
   return r;
 }
@@ -373,6 +339,23 @@ function load() {
  */
 
 exports.enable(load());
+
+/**
+ * Localstorage attempts to return the localstorage.
+ *
+ * This is necessary because safari throws
+ * when a user disables cookies/localstorage
+ * and you attempt to access it.
+ *
+ * @return {LocalStorage}
+ * @api private
+ */
+
+function localstorage(){
+  try {
+    return window.localStorage;
+  } catch (e) {}
+}
 
 },{"./debug":3}],3:[function(require,module,exports){
 
@@ -614,13 +597,17 @@ module.exports = function(val, options){
  */
 
 function parse(str) {
-  var match = /^((?:\d+)?\.?\d+) *(ms|seconds?|s|minutes?|m|hours?|h|days?|d|years?|y)?$/i.exec(str);
+  str = '' + str;
+  if (str.length > 10000) return;
+  var match = /^((?:\d+)?\.?\d+) *(milliseconds?|msecs?|ms|seconds?|secs?|s|minutes?|mins?|m|hours?|hrs?|h|days?|d|years?|yrs?|y)?$/i.exec(str);
   if (!match) return;
   var n = parseFloat(match[1]);
   var type = (match[2] || 'ms').toLowerCase();
   switch (type) {
     case 'years':
     case 'year':
+    case 'yrs':
+    case 'yr':
     case 'y':
       return n * y;
     case 'days':
@@ -629,16 +616,26 @@ function parse(str) {
       return n * d;
     case 'hours':
     case 'hour':
+    case 'hrs':
+    case 'hr':
     case 'h':
       return n * h;
     case 'minutes':
     case 'minute':
+    case 'mins':
+    case 'min':
     case 'm':
       return n * m;
     case 'seconds':
     case 'second':
+    case 'secs':
+    case 'sec':
     case 's':
       return n * s;
+    case 'milliseconds':
+    case 'millisecond':
+    case 'msecs':
+    case 'msec':
     case 'ms':
       return n;
   }
@@ -747,10 +744,10 @@ module.exports={
     "email": "brian@worlize.com",
     "url": "https://www.worlize.com/"
   },
-  "version": "1.0.17",
+  "version": "1.0.19",
   "repository": {
     "type": "git",
-    "url": "https://github.com/theturtle32/WebSocket-Node.git"
+    "url": "git+https://github.com/theturtle32/WebSocket-Node.git"
   },
   "homepage": "https://github.com/theturtle32/WebSocket-Node",
   "engines": {
@@ -758,7 +755,7 @@ module.exports={
   },
   "dependencies": {
     "debug": "~2.1.0",
-    "nan": "~1.0.0",
+    "nan": "1.8.x",
     "typedarray-to-buffer": "~3.0.0"
   },
   "devDependencies": {
@@ -782,14 +779,16 @@ module.exports={
     "lib": "./lib"
   },
   "browser": "lib/browser.js",
-  "gitHead": "cda940b883aa884906ac13158fe514229a67f426",
+  "license": "Apache-2.0",
+  "gitHead": "da3bd5b04e9442c84881b2e9c13432cdbbae1f16",
   "bugs": {
     "url": "https://github.com/theturtle32/WebSocket-Node/issues"
   },
-  "_id": "websocket@1.0.17",
-  "_shasum": "8a572afc6ec120eb41473ca517d07d932f7b6a1c",
-  "_from": "websocket@*",
-  "_npmVersion": "1.4.28",
+  "_id": "websocket@1.0.19",
+  "_shasum": "e62dbf1a3c5e0767425db7187cfa38f921dfb42c",
+  "_from": "websocket@>=1.0.19 <2.0.0",
+  "_npmVersion": "2.10.1",
+  "_nodeVersion": "0.12.4",
   "_npmUser": {
     "name": "theturtle32",
     "email": "brian@worlize.com"
@@ -801,11 +800,149 @@ module.exports={
     }
   ],
   "dist": {
-    "shasum": "8a572afc6ec120eb41473ca517d07d932f7b6a1c",
-    "tarball": "http://registry.npmjs.org/websocket/-/websocket-1.0.17.tgz"
+    "shasum": "e62dbf1a3c5e0767425db7187cfa38f921dfb42c",
+    "tarball": "http://registry.npmjs.org/websocket/-/websocket-1.0.19.tgz"
   },
-  "_resolved": "https://registry.npmjs.org/websocket/-/websocket-1.0.17.tgz",
+  "_resolved": "https://registry.npmjs.org/websocket/-/websocket-1.0.19.tgz",
   "readme": "ERROR: No README data found!"
+}
+
+},{}],8:[function(require,module,exports){
+module.exports = {
+	EventTarget:  require('./lib/EventTarget'),
+	Event:        require('./lib/Event')
+};
+
+},{"./lib/Event":9,"./lib/EventTarget":10}],9:[function(require,module,exports){
+(function (global){
+/**
+ * In browsers export the native Event interface.
+ */
+
+module.exports = global.Event;
+
+}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{}],10:[function(require,module,exports){
+/**
+ * Expose the _EventTarget class.
+ */
+module.exports = _EventTarget;
+
+
+function _EventTarget() {
+	// Do nothing if called for a native EventTarget object..
+	if (typeof this.addEventListener === 'function') {
+		return;
+	}
+
+	this._listeners = {};
+
+	this.addEventListener = _addEventListener;
+	this.removeEventListener = _removeEventListener;
+	this.dispatchEvent = _dispatchEvent;
+}
+
+
+Object.defineProperties(_EventTarget.prototype, {
+	listeners: {
+		get: function () {
+			return this._listeners;
+		}
+	}
+});
+
+
+function _addEventListener(type, newListener) {
+	var listenersType,
+		i, listener;
+
+	if (!type || !newListener) {
+		return;
+	}
+
+	listenersType = this._listeners[type];
+	if (listenersType === undefined) {
+		this._listeners[type] = listenersType = [];
+	}
+
+	for (i = 0; !!(listener = listenersType[i]); i++) {
+		if (listener === newListener) {
+			return;
+		}
+	}
+
+	listenersType.push(newListener);
+}
+
+
+function _removeEventListener(type, oldListener) {
+	var listenersType,
+		i, listener;
+
+	if (!type || !oldListener) {
+		return;
+	}
+
+	listenersType = this._listeners[type];
+	if (listenersType === undefined) {
+		return;
+	}
+
+	for (i = 0; !!(listener = listenersType[i]); i++) {
+		if (listener === oldListener) {
+			listenersType.splice(i, 1);
+			break;
+		}
+	}
+
+	if (listenersType.length === 0) {
+		delete this._listeners[type];
+	}
+}
+
+
+function _dispatchEvent(event) {
+	var type,
+		listenersType,
+		dummyListener,
+		stopImmediatePropagation = false,
+		i, listener;
+
+	if (!event || typeof event.type !== 'string') {
+		throw new Error('`event` must have a valid `type` property');
+	}
+
+	if (event._dispatched) {
+		throw new Error('event already dispatched');
+	}
+	event._dispatched = true;
+
+	// Force the event to be cancelable.
+	event.cancelable = true;
+	event.target = this;
+
+	// Override stopImmediatePropagation() function.
+	event.stopImmediatePropagation = function () {
+		stopImmediatePropagation = true;
+	};
+
+	type = event.type;
+	listenersType = (this._listeners[type] || []);
+
+	dummyListener = this['on' + type];
+	if (typeof dummyListener === 'function') {
+		listenersType.push(dummyListener);
+	}
+
+	for (i = 0; !!(listener = listenersType[i]); i++) {
+		if (stopImmediatePropagation) {
+			break;
+		}
+
+		listener.call(this, event);
+	}
+
+	return !event.defaultPrevented;
 }
 
 },{}]},{},[1])(1)

@@ -4,98 +4,82 @@
 module.exports = WebSocketWrapper;
 
 
-/**
- * Dependencies.
- */
-var debug = require('debug')('WebSocketWrapper');
-var debugerror = require('debug')('WebSocketWrapper:ERROR');
+var
+	/**
+	 * Dependencies.
+	 */
+	debug = require('debug')('WebSocketWrapper'),
+	debugerror = require('debug')('WebSocketWrapper:ERROR'),
+	// 'websocket' module uses the native WebSocket interface when bundled to run in a browser.
+	W3CWebSocket = require('websocket').w3cwebsocket,
+	yaeti = require('yaeti');
+
+
 debugerror.log = console.warn.bind(console);
-// 'websocket' module uses the native WebSocket interface when bundled to run in a browser.
-var W3CWebSocket = require('websocket').w3cwebsocket;
 
 
-function WebSocketWrapper(url, protocols, origin, headers, requestOptions, clientConfig) {
-	debug('new() | [url:%s, protocols:%s]', url, protocols);
+function WebSocketWrapper() {
+	debug('new() | [url:"%s", protocol:%s]', arguments[0], arguments[1]);
 
-	var self = this;
+	// Make this an EventTarget.
+	yaeti.EventTarget.call(this);
 
-	// Create the native WebSocket instance.
-	this.createWebSocket = function() {
-		this.ws = new W3CWebSocket(url, protocols, origin, headers, requestOptions, clientConfig);
+	// Store arguments.
+	this.args = arguments;
 
-		this.ws.onopen = function(e) {
-			_onopen.call(self, e);
-		};
+	// The native WebSocket instance.
+	this._ws = null;
 
-		this.ws.onerror = function(e) {
-			_onerror.call(self, e);
-		};
-
-		this.ws.onclose = function(e) {
-			_onclose.call(self, e);
-		};
-
-		if (this._onmessage) {
-			this.ws.onmessage = this._onmessage;
-		}
-
-		if (this._binaryType) {
-			this.ws.binaryType = this._binaryType;
-		}
-	};
-
-	this.createWebSocket();
+	// Create the native WebSocket.
+	createWebSocket.apply(this, this.args);
 
 	// Flag indicating that WebSocket is closed by us.
-	this.closed = false;
+	this._closed = false;
 
 	// Flag indicating that an error happened while connecting.
-	this.hasError = false;
+	this._hasError = false;
 
 	// Reconnecting flag.
-	this.isReconnecting = false;
+	this._isReconnecting = false;
 
 	// Reconnection timer.
-	this.reconnectionTimer = null;
+	this._reconnectionTimer = null;
 
 	// Reconnection delay.
-	this.reconnectionDelay = 2000;
+	this._reconnectionDelay = 5000;
 }
 
 
-// Expose W3C WebSocket attributes.
 Object.defineProperties(WebSocketWrapper.prototype, {
-    url:            { get: function() { return this.ws.url;            } },
-    readyState:     { get: function() { return this.ws.readyState;     } },
-    protocol:       { get: function() { return this.ws.protocol;       } },
-    extensions:     { get: function() { return this.ws.extensions;     } },
-    bufferedAmount: { get: function() { return this.ws.bufferedAmount; } },
+	url:            { get: function () { return this._ws.url;            } },
+	readyState:     { get: function () { return this._ws.readyState;     } },
+	protocol:       { get: function () { return this._ws.protocol;       } },
+	extensions:     { get: function () { return this._ws.extensions;     } },
+	bufferedAmount: { get: function () { return this._ws.bufferedAmount; } },
 
-    CONNECTING:     { get: function() { return this.ws.CONNECTING;     } },
-    OPEN:           { get: function() { return this.ws.OPEN;           } },
-    CLOSING:        { get: function() { return this.ws.CLOSING;        } },
-    CLOSED:         { get: function() { return this.ws.CLOSED;         } },
+	CONNECTING:     { get: function () { return this._ws.CONNECTING;     } },
+	OPEN:           { get: function () { return this._ws.OPEN;           } },
+	CLOSING:        { get: function () { return this._ws.CLOSING;        } },
+	CLOSED:         { get: function () { return this._ws.CLOSED;         } },
 
-    // TODO: set when reconnected
-    binaryType: {
-        get: function() {
-            return this.ws.binaryType;
-        },
-        set: function(type) {
-        	this._binaryType = type;
-            this.ws.binaryType = type;
-        }
-    },
+	binaryType: {
+		get: function () {
+			return this._ws.binaryType;
+		},
+		set: function (type) {
+			this._binaryType = type;
+			this._ws.binaryType = type;
+		}
+	},
 
-    onmessage: {
-    	get: function() {
-    		return this.ws.onmessage;
-    	},
-    	set: function(handler) {
-    		this._onmessage = handler;
-    		this.ws.onmessage = handler;
-    	}
-    }
+	reconnectionDelay: {
+		get: function () {
+			return this._reconnectionDelay;
+		},
+		set: function (delay) {
+			this._reconnectionDelay = delay;
+		}
+	}
 });
 
 
@@ -104,47 +88,28 @@ Object.defineProperties(WebSocketWrapper.prototype, {
  */
 
 
-WebSocketWrapper.prototype.send = function(data) {
-	this.ws.send(data);
+WebSocketWrapper.prototype.send = function (data) {
+	this._ws.send(data);
 };
 
 
-WebSocketWrapper.prototype.close = function(code, reason) {
+WebSocketWrapper.prototype.close = function (code, reason) {
+	if (this._closed) {
+		return;
+	}
+
 	debug('close() | [code:%s, reason:%s]', code, reason);
 
-	if (this.closed) { return; }
-	this.closed = true;
-
-	code = code || 1000;
-	reason = reason || 'user closure';
-
-	// Reset events.
-	this.onopen = null;
-	this.onerror = null;
-	this.onmessage = null;
+	this._closed = true;
 
 	// Stop the reconnection timer.
-	clearTimeout(this.reconnectionTimer);
+	clearTimeout(this._reconnectionTimer);
 
-	if (this.ws.readyState === this.ws.OPEN) {
-		try {
-			this.ws.close(code, reason);
-		} catch(error) {
-			debugerror('close() | error closing the WebSocket: %o', error);
-		}
+	try {
+		this._ws.close(code || 1000, reason || 'user closure');
+	} finally {
+		this._ws = null;
 	}
-	else if (this.ws.readyState === this.ws.CONNECTING) {
-		var ws = this.ws;
-
-		ws.onopen = function() {
-			try { ws.close(code, reason); } catch(error) {}
-		};
-	}
-};
-
-
-WebSocketWrapper.prototype.setReconnectionDelay = function(delay) {
-	this.reconnectionDelay = delay;
 };
 
 
@@ -153,62 +118,70 @@ WebSocketWrapper.prototype.setReconnectionDelay = function(delay) {
  */
 
 
-function _onopen(e) {
-	// First connection.
-	if (! this.isReconnecting) {
-		debug('onopen()');
-
-		if (this.onopen) {
-			this.onopen(e);
-		}
-	}
-	// Reconnection.
-	else {
-		debug('onreconnect()');
-
-		if (this.onreconnect) {
-			this.onreconnect(e);
-		}
-		else if (this.onopen) {
-			this.onopen(e);
-		}
-	}
-}
-
-
-function _onerror(e) {
-	debugerror('onerror() | event: %o', e);
-
-	this.hasError = true;
-
-	if (this.onerror) {
-		this.onerror(e);
-	}
-}
-
-
-function _onclose(e) {
-	debug('onclose() | [code:%s, reason:"%s", wasClean:%s]', e.code, e.reason, e.wasClean);
-
+function createWebSocket(url, protocols, origin, headers, requestOptions, clientConfig) {
 	var self = this;
 
-	if (this.onclose) {
-		this.onclose(e);
-	}
+	this._ws = new W3CWebSocket(url, protocols, origin, headers, requestOptions, clientConfig);
 
-	// Don't try to reconnect if we closed the connection.
-	if (this.closed) { return; }
+	this._ws.onopen = function (e) {
+		// First connection.
+		if (!self._isReconnecting) {
+			debug('firing "open"');
 
-	// Don't try to reconnect if an error happened while connecting.
-	if (this.hasError) { return; }
-	this.hasError = false;
+			self.dispatchEvent(e);
+		// Reconnection.
+		} else {
+			if (self.onreconnect || self._listeners.reconnect) {
+				debug('reconnected, firing "reconnect"');
 
-	if (this.reconnectionDelay) {
-		this.reconnectionTimer = setTimeout(function() {
-			debug('reconnecting ...');
+				self.dispatchEvent(new yaeti.Event('reconnect'));
+			} else {
+				debug('reconnected, firing "open"');
 
-			self.isReconnecting = true;
-			self.createWebSocket();
-		}, this.reconnectionDelay);
+				self.dispatchEvent(e);
+			}
+		}
+	};
+
+	this._ws.onerror = function (e) {
+		debug('firing "error"');
+
+		self._hasError = true;
+		self.dispatchEvent(e);
+	};
+
+	this._ws.onclose = function (e) {
+		debug('firing "close" | [code:%s, reason:"%s", wasClean:%s]', e.code, e.reason, e.wasClean);
+
+		try {
+			self.dispatchEvent(e);
+		} catch (error) {}
+
+		// Don't try to reconnect if we closed the connection or an error happened while connecting.
+		if (self._closed || self._hasError) {
+			return;
+		}
+
+		self._hasError = false;
+
+		if (self._reconnectionDelay) {
+			debug('will try to reconnect in %s ms', self._reconnectionDelay);
+
+			self._reconnectionTimer = setTimeout(function () {
+				debug('reconnecting ...');
+
+				self._isReconnecting = true;
+				createWebSocket.apply(self, self.args);
+			}, self._reconnectionDelay);
+		}
+	};
+
+	this._ws.onmessage = function (e) {
+		self.dispatchEvent(e);
+	};
+
+	// Set previous binaryType if this is a reconnection.
+	if (this._binaryType) {
+		this._ws.binaryType = this._binaryType;
 	}
 }
