@@ -40,7 +40,7 @@ They expose the global `window.WebSocketWrapper` module.
 ```javascript
 var ws = new WebSocketWrapper(url, protocol);
 
-ws.setReconnectionDelay(5000);
+ws.reconnectionDelay = 5000;
 
 ws.onopen = function() {
     console.log('connected');

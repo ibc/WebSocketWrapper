@@ -11,7 +11,7 @@ An instance of `WebSocketWrapper` holds an instance of a native [WebSocket](http
 
 ### Events
 
-`open` event is fired for the first WebSocket connection. If the connection is closed by the server or due to a netwotk error then `close` is fired and, after a delay, a new connection is attempted. If it connects to the server, `reconnect` is fired on the `WebSocketWrapper` instance (if it's set by the user, otherwise `open` will be called again.
+`open` event is fired for the first WebSocket connection. If the connection is closed by the server or due to a netwotk error then `close` is fired and, after a delay, a new connection is attempted. If it connects to the server, `reconnect` is fired on the `WebSocketWrapper` instance.
 
 
 ### Custom API
