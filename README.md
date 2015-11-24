@@ -19,22 +19,6 @@ var WebSocketWrapper = require('websocketwrapper');
 ```
 
 
-## Browserified library
-
-Take a browserified version of the library from the `dist/` folder:
-
-* `dist/websocketwrapper-X.Y.Z.js`: The uncompressed version.
-* `dist/websocketwrapper-X.Y.Z.min.js`: The compressed production-ready version.
-* `dist/websocketwrapper.js`: A copy of the uncompressed version.
-* `dist/websocketwrapper.min.js`: A copy of the compressed version.
-
-They expose the global `window.WebSocketWrapper` module.
-
-```html
-<script src='websocketwrapper-X.Y.Z.js'></script>
-```
-
-
 ## Usage Example
 
 ```javascript
