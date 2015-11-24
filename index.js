@@ -107,8 +107,8 @@ WebSocketWrapper.prototype.close = function (code, reason) {
 
 	try {
 		this._ws.close(code || 1000, reason || 'user closure');
-	} finally {
-		this._ws = null;
+	} catch (error) {
+		debugerror('close() failed: %o', error);
 	}
 };
 
