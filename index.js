@@ -36,9 +36,6 @@ function WebSocketWrapper() {
 	// Flag indicating that WebSocket is closed by us.
 	this._closed = false;
 
-	// Flag indicating that an error happened while connecting.
-	this._hasError = false;
-
 	// Reconnecting flag.
 	this._isReconnecting = false;
 
@@ -146,7 +143,6 @@ function createWebSocket(url, protocols, origin, headers, requestOptions, client
 	this._ws.onerror = function (e) {
 		debug('firing "error"');
 
-		self._hasError = true;
 		self.dispatchEvent(e);
 	};
 
@@ -157,12 +153,10 @@ function createWebSocket(url, protocols, origin, headers, requestOptions, client
 			self.dispatchEvent(e);
 		} catch (error) {}
 
-		// Don't try to reconnect if we closed the connection or an error happened while connecting.
-		if (self._closed || self._hasError) {
+		// Don't try to reconnect if we closed the connection.
+		if (self._closed) {
 			return;
 		}
-
-		self._hasError = false;
 
 		if (self._reconnectionDelay) {
 			debug('will try to reconnect in %s ms', self._reconnectionDelay);
