@@ -12,7 +12,7 @@ $ npm install websocketwrapper
 ```
 
 
-## Usage in Node
+## Usage in Node/Browserify
 
 ```javascript
 var WebSocketWrapper = require('websocketwrapper');
@@ -48,20 +48,37 @@ ws.onmessage = function(e) {
 
 ## Documentation
 
-You can read the full [API documentation](docs/index.md) in the docs folder.
+## `WebSocketWrapper` Class API
+
+An instance of `WebSocketWrapper` holds an instance of a native [WebSocket](http://dev.w3.org/html5/websockets/). The exposed API is the same as the native one. Just some differences/additions are described below.
+
+
+### `new WebSocketWrapper(url, protocols)` constructor
+
+* `url` and `protocols` mean the same as in the native API.
+
+
+### Events
+
+`open` event is fired for the first WebSocket connection. If the connection is closed by the server or due to a netwotk error then `close` is fired and, after a delay, a new connection is attempted. If it connects to the server, `reconnect` event is fired.
+
+
+### Custom API
+
+
+#### `ws.reconnectionDelay` property
+
+Reconnection delay (in milliseconds). Default value is 5000 ms. If it's set to 0 no reconnection attempt will be performed.
+
+```javascript
+ws.reconnectionDelay = 2000;
+```
+
 
 
 ## Debugging
 
-The library includes the Node [debug](https://github.com/visionmedia/debug) module. In order to enable debugging:
-
-In Node set the `DEBUG=WebSocketWrapper*` environment variable before running the application, or set it at the top of the script:
-
-```javascript
-process.env.DEBUG = 'WebSocketWrapper*';
-```
-
-In the browser run `WebSocketWrapper.debug.enable('WebSocketWrapper*');` and reload the page. Note that the debugging settings are stored into the browser LocalStorage. To disable it run `WebSocketWrapper.debug.disable('WebSocketWrapper*');`.
+The library includes the Node [debug](https://github.com/visionmedia/debug) module and produces logs with prefix `WebSocketWrapper`.
 
 
 ## Author

@@ -1,20 +1,35 @@
-var
-	gulp = require('gulp'),
-	jscs = require('gulp-jscs'),
-	stylish = require('gulp-jscs-stylish'),
-	jshint = require('gulp-jshint');
+var gulp = require('gulp');
+var eslint = require('gulp-eslint');
 
-
-gulp.task('lint', function () {
+gulp.task('lint', function()
+{
 	var src = ['gulpfile.js', 'index.js'];
 
 	return gulp.src(src)
-		.pipe(jshint('.jshintrc'))  // Enforce good practics.
-		.pipe(jscs('.jscsrc'))  // Enforce style guide.
-		.pipe(stylish.combineWithHintResults())
-		.pipe(jshint.reporter('jshint-stylish', {verbose: true}))
-		.pipe(jshint.reporter('fail'));
+		.pipe(eslint(
+			{
+				plugins : [ ],
+				extends : [ 'eslint:recommended' ],
+				settings : {},
+				parserOptions :
+				{
+					sourceType : 'module'
+				},
+				env :
+				{
+					browser  : true,
+					node     : true,
+					commonjs : true
+				},
+				rules :
+				{
+					'no-console'     : 0,
+					'no-empty'       : 0,
+					'no-unused-vars' : 1,
+					'quotes'         : [ 2, 'single', 'avoid-escape' ]
+				}
+			}))
+		.pipe(eslint.format());
 });
-
 
 gulp.task('default', gulp.series('lint'));
