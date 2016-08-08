@@ -31,6 +31,7 @@ function WebSocketWrapper()
 
 	// Reconnection delay
 	this._reconnectionDelay = 5000;
+	this._currentReconnectionDelay = this._reconnectionDelay;
 }
 
 Object.defineProperties(WebSocketWrapper.prototype,
@@ -68,6 +69,7 @@ Object.defineProperties(WebSocketWrapper.prototype,
 			set: function(delay)
 			{
 				this._reconnectionDelay = delay;
+				this._currentReconnectionDelay = delay;
 			}
 		}
 	});
@@ -82,7 +84,7 @@ WebSocketWrapper.prototype.close = function(code, reason)
 	if (this._closed)
 		return;
 
-	debug('close() | [code:%s, reason:%s]', code, reason);
+	debug('close() [code:%s, reason:%o]', code, reason);
 
 	this._closed = true;
 
@@ -111,10 +113,13 @@ function createWebSocket(url, protocols)
 
 	this._ws.onopen = function(e)
 	{
+		// Reset current reconnection delay to the original value
+		this._currentReconnectionDelay = this._reconnectionDelay;
+
 		// First connection
 		if (!self._isReconnecting)
 		{
-			debug('firing "open"');
+			debug('"open" event');
 
 			self.dispatchEvent(e);
 		}
@@ -123,13 +128,13 @@ function createWebSocket(url, protocols)
 		{
 			if (self.onreconnect || self._listeners.reconnect)
 			{
-				debug('reconnected, firing "reconnect"');
+				debug('"open" event (emitting "reconnect")');
 
 				self.dispatchEvent(new yaeti.Event('reconnect'));
 			}
 			else
 			{
-				debug('reconnected, firing "open"');
+				debug('"open" event');
 
 				self.dispatchEvent(e);
 			}
@@ -138,14 +143,14 @@ function createWebSocket(url, protocols)
 
 	this._ws.onerror = function(e)
 	{
-		debug('firing "error"');
+		debug('"error" event');
 
 		self.dispatchEvent(e);
 	};
 
 	this._ws.onclose = function(e)
 	{
-		debug('firing "close" | [code:%s, reason:"%s", wasClean:%s]', e.code, e.reason, e.wasClean);
+		debug('"close" event| [code:%s, reason:%o, wasClean:%s]', e.code, e.reason, e.wasClean);
 
 		try
 		{
@@ -159,15 +164,22 @@ function createWebSocket(url, protocols)
 
 		if (self._reconnectionDelay)
 		{
-			debug('will try to reconnect in %s ms', self._reconnectionDelay);
+			debug('reconnecting in %s ms', self._currentReconnectionDelay);
 
 			self._reconnectionTimer = setTimeout(function()
 			{
-				debug('reconnecting ...');
+				// Don't try to reconnect if we closed the connection
+				if (self._closed)
+					return;
+
+				debug('reconnecting...');
 
 				self._isReconnecting = true;
 				createWebSocket.apply(self, self._args);
-			}, self._reconnectionDelay);
+			}, self._currentReconnectionDelay);
+
+			// Update current reconnecting delay
+			self._currentReconnectionDelay = Math.min(self._currentReconnectionDelay * 1.5, 30000);
 		}
 	};
 
