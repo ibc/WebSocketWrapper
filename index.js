@@ -114,7 +114,7 @@ function createWebSocket(url, protocols)
 	this._ws.onopen = function(e)
 	{
 		// Reset current reconnection delay to the original value
-		this._currentReconnectionDelay = this._reconnectionDelay;
+		self._currentReconnectionDelay = self._reconnectionDelay;
 
 		// First connection
 		if (!self._isReconnecting)
