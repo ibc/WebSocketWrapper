@@ -105,7 +105,10 @@ function createWebSocket(url, protocols)
 {
 	var self = this;
 
-	this._ws = new WebSocket(url, protocols);
+	if (protocols)
+		this._ws = new WebSocket(url, protocols);
+	else
+		this._ws = new WebSocket(url);
 
 	// Set previous binaryType if this is a reconnection
 	if (this._binaryType)
