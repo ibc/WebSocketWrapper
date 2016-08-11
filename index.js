@@ -133,7 +133,10 @@ function createWebSocket(url, protocols)
 			{
 				debug('"open" event (emitting "reconnect")');
 
-				self.dispatchEvent(new yaeti.Event('reconnect'));
+				var event = document.createEvent('Event');
+
+				event.initEvent('reconnect', true, true);
+				self.dispatchEvent(event);
 			}
 			else
 			{
