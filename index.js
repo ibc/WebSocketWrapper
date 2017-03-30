@@ -4,6 +4,7 @@ var yaeti = require('yaeti');
 
 debugerror.log = console.warn.bind(console);
 
+WebSocketWrapper.WebSocket = typeof WebSocket === 'function' ? WebSocket : null;
 function WebSocketWrapper()
 {
 	debug('new() [url:"%s", protocol:%s]', arguments[0], arguments[1]);
@@ -101,14 +102,30 @@ WebSocketWrapper.prototype.close = function(code, reason)
 	}
 };
 
+function createReconnectEvent () {
+	if (typeof document !== 'object') {
+		return new yaeti.Event('reconnect');
+	}
+
+	var event = document.createEvent('Event');
+
+	event.initEvent('reconnect', true, true);
+
+	return event;
+}
+
 function createWebSocket(url, protocols)
 {
+	if (!WebSocketWrapper.WebSocket) {
+		throw new Error('WebSocketWrapper.WebSocket must be set to a w3c compatible WebSocket constructor');
+	}
+
 	var self = this;
 
 	if (protocols)
-		this._ws = new WebSocket(url, protocols);
+		this._ws = new WebSocketWrapper.WebSocket(url, protocols);
 	else
-		this._ws = new WebSocket(url);
+		this._ws = new WebSocketWrapper.WebSocket(url);
 
 	// Set previous binaryType if this is a reconnection
 	if (this._binaryType)
@@ -133,9 +150,7 @@ function createWebSocket(url, protocols)
 			{
 				debug('"open" event (emitting "reconnect")');
 
-				var event = document.createEvent('Event');
-
-				event.initEvent('reconnect', true, true);
+				var event = createReconnectEvent();
 				self.dispatchEvent(event);
 			}
 			else
